@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 export type Database = {
@@ -118,23 +117,18 @@ export type Database = {
   };
 };
 
-// Default fallback values that won't cause initialization errors
-// These won't actually connect to a real Supabase instance
-const DEFAULT_SUPABASE_URL = 'https://placeholder-project.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+// Use your actual Supabase URL and anon key
+const supabaseUrl = 'https://emmladhteznfjabfjncn.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWxhZGh0ZXpuZmphYmZqbmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0MDk1NzksImV4cCI6MjA1OTk4NTU3OX0.Yy_jIIALMqDhGYCe_WOX5xNQcLLL7tNWbBVCeDs7AW0';
 
-// Get values from environment variables with fallbacks
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
-
-// Add console logs to debug the environment variables
+// Add console logs to debug the configuration
 console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Anon Key:', supabaseAnonKey);
+console.log('Supabase Anon Key:', supabaseAnonKey.substring(0, 10) + '...');
 
 // Create and export the Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Helper function to check if we're using real credentials
 export const isUsingRealSupabase = () => {
-  return supabaseUrl !== DEFAULT_SUPABASE_URL && supabaseAnonKey !== DEFAULT_SUPABASE_KEY;
+  return true; // Since we're now using real credentials directly in the code
 };

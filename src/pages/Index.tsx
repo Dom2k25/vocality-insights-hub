@@ -16,14 +16,6 @@ const Index = () => {
     // Check if database needs initialization
     const initDatabase = async () => {
       try {
-        // Check if Supabase is properly configured
-        if (!isUsingRealSupabase()) {
-          console.warn('Using placeholder Supabase configuration. Database initialization skipped.');
-          toast.warning('⚠️ Supabase configuration missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY variables.');
-          setInitializing(false);
-          return;
-        }
-
         // Try to check if database tables exist
         try {
           const { data: tables, error: tablesError } = await supabase.rpc('get_tables');
@@ -34,11 +26,12 @@ const Index = () => {
             // More specific error message
             if (tablesError.message.includes('not found') || tablesError.message.includes('get_tables')) {
               toast.error('RPC function "get_tables" not found. You need to create this in your Supabase SQL editor.');
+              console.log('Proceeding with database setup...');
               // Proceed with setup anyway as this is likely a new project
               await setupDatabase();
             } else {
               toast.error('Could not connect to database. Please check your Supabase configuration.');
-              setError('Database connection failed. Ensure your Supabase URL and key are correct.');
+              setError('Database connection failed. Check the console for more details.');
             }
             
             setInitializing(false);
@@ -61,6 +54,7 @@ const Index = () => {
             
           if (!allTablesExist) {
             // Database needs setup
+            console.log('Some tables are missing. Setting up database...');
             await setupDatabase();
           }
         } catch (rpcError) {
