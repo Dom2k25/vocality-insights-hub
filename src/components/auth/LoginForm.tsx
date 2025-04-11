@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { InfoCircle } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -29,6 +30,7 @@ export function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -44,12 +46,63 @@ export function LoginForm() {
       await login(data.email, data.password);
       navigate("/dashboard");
     } catch (error) {
-      // Error is already handled in the auth context
       console.error(error);
+      // Check if we need to setup auth users
+      checkSetupRequired();
     } finally {
       setIsLoading(false);
     }
   }
+
+  const checkSetupRequired = async () => {
+    // Check if we have any auth users at all
+    const { data, error } = await supabase.auth.admin.listUsers();
+    
+    if (error) {
+      console.error("Error checking auth users:", error);
+      if (error.message.includes("not allowed")) {
+        // No admin access, likely demo users not created
+        setSetupRequired(true);
+      }
+      return;
+    }
+    
+    if (!data?.users || data.users.length === 0) {
+      setSetupRequired(true);
+    }
+  };
+
+  const handleSetupDemoAccounts = async () => {
+    setIsLoading(true);
+    try {
+      // Create demo accounts manually since admin API might not be accessible
+      for (const email of ["admin@vocality.app", "team@vocality.app", "coach@vocality.app", "agent@vocality.app"]) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password: "password123",
+          options: {
+            data: {
+              email_confirm: true
+            }
+          }
+        });
+        
+        if (error) {
+          console.error(`Error creating user ${email}:`, error);
+        } else {
+          console.log(`Created user: ${email}`);
+        }
+      }
+      
+      toast.success("Demo accounts created successfully! Try logging in now.");
+      setSetupRequired(false);
+    } catch (error) {
+      console.error("Error setting up demo accounts:", error);
+      toast.error("Failed to create demo accounts. Please check console for details.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDemoLogin = async (role: string) => {
     setIsLoading(true);
@@ -77,8 +130,9 @@ export function LoginForm() {
       await login(email, password);
       navigate("/dashboard");
     } catch (error) {
-      // Error is already handled in the auth context
       console.error(error);
+      // Check if we need to setup auth users
+      checkSetupRequired();
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +146,27 @@ export function LoginForm() {
           Enter your credentials to access your account
         </p>
       </div>
+
+      {setupRequired && (
+        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-amber-800 dark:text-amber-200 flex items-start gap-3 mb-4">
+          <InfoCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-medium">Demo accounts need setup</h3>
+            <p className="text-sm mt-1">
+              It appears the demo user accounts need to be created in Supabase Auth.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 bg-amber-100 dark:bg-amber-900 border-amber-200 dark:border-amber-800"
+              onClick={handleSetupDemoAccounts}
+              disabled={isLoading}
+            >
+              {isLoading ? "Creating accounts..." : "Create Demo Accounts"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

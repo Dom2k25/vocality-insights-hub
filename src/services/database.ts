@@ -119,8 +119,113 @@ export const fetchAnalytics = async (userId?: string, period: 'day' | 'week' | '
   return processedData;
 };
 
+// Helper function to create auth users
+const createAuthUser = async (email: string, password: string) => {
+  try {
+    // Check if user already exists in auth
+    const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers();
+    
+    if (getUserError) {
+      console.error('Error checking if auth user exists:', getUserError);
+      return;
+    }
+    
+    const existingUser = users?.find(user => user.email === email);
+    
+    if (!existingUser) {
+      // Create auth user if it doesn't exist
+      console.log(`Creating auth user for ${email}`);
+      const { data, error } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email
+      });
+      
+      if (error) {
+        console.error(`Error creating auth user for ${email}:`, error);
+      } else {
+        console.log(`Auth user created for ${email}`);
+      }
+    } else {
+      console.log(`Auth user for ${email} already exists`);
+    }
+  } catch (error) {
+    console.error(`Error in createAuthUser for ${email}:`, error);
+  }
+};
+
 // Setup function - This would be called once to initialize database with test data
 export const setupDatabase = async () => {
+  console.log("Setting up database with test data...");
+  
+  // Create teams table if it doesn't exist
+  const { error: teamsTableError } = await supabase.query(`
+    CREATE TABLE IF NOT EXISTS public.teams (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  
+  if (teamsTableError) console.error("Error creating teams table:", teamsTableError);
+  
+  // Create users table if it doesn't exist
+  const { error: usersTableError } = await supabase.query(`
+    CREATE TABLE IF NOT EXISTS public.users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      team TEXT,
+      avatar TEXT,
+      status TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  
+  if (usersTableError) console.error("Error creating users table:", usersTableError);
+  
+  // Create calls table if it doesn't exist
+  const { error: callsTableError } = await supabase.query(`
+    CREATE TABLE IF NOT EXISTS public.calls (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES public.users(id),
+      customer_name TEXT NOT NULL,
+      duration INTEGER NOT NULL,
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      score INTEGER NOT NULL,
+      recording_url TEXT,
+      transcript TEXT,
+      analysis JSONB
+    );
+  `);
+  
+  if (callsTableError) console.error("Error creating calls table:", callsTableError);
+  
+  // Create keywords table if it doesn't exist
+  const { error: keywordsTableError } = await supabase.query(`
+    CREATE TABLE IF NOT EXISTS public.keywords (
+      id TEXT PRIMARY KEY,
+      text TEXT NOT NULL,
+      sentiment TEXT NOT NULL,
+      count INTEGER NOT NULL,
+      team_id TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  
+  if (keywordsTableError) console.error("Error creating keywords table:", keywordsTableError);
+  
+  // Insert a team if it doesn't exist
+  const { error: teamInsertError } = await supabase
+    .from('teams')
+    .upsert({ 
+      id: '1', 
+      name: 'Sales'
+    }, { onConflict: 'id' });
+  
+  if (teamInsertError) console.error("Error inserting team:", teamInsertError);
+
   const testUsers = [
     {
       id: '1',
@@ -170,5 +275,11 @@ export const setupDatabase = async () => {
     if (error || !data) {
       await supabase.from('users').insert(user);
     }
+    
+    // Create auth users for demo accounts
+    await createAuthUser(user.email, 'password123');
   }
+  
+  console.log("Database setup completed!");
 };
+
