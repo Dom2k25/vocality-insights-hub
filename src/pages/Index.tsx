@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, isUsingRealSupabase } from "@/lib/supabase";
 import { setupDatabase } from "@/services/database";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,50 +17,56 @@ const Index = () => {
     const initDatabase = async () => {
       try {
         // Check if Supabase is properly configured
-        if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-          console.warn('Supabase environment variables are not set. Database initialization skipped.');
-          toast.warning('Supabase configuration is missing. Please set your environment variables.');
+        if (!isUsingRealSupabase()) {
+          console.warn('Using placeholder Supabase configuration. Database initialization skipped.');
+          toast.warning('⚠️ Supabase configuration missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY variables.');
           setInitializing(false);
           return;
         }
 
-        // Check if database tables exist
-        const { data: tables, error } = await supabase.rpc('get_tables').catch(err => {
-          // Handle RPC call errors
-          console.error('RPC call failed:', err);
-          return { data: null, error: err };
-        });
-        
-        if (error) {
-          console.error('Error checking tables:', error);
+        // Try to check if database tables exist
+        try {
+          const { data: tables, error: tablesError } = await supabase.rpc('get_tables');
           
-          // More specific error message
-          if (error.message.includes('not found') || error.message.includes('get_tables')) {
-            toast.error('RPC function "get_tables" not found. Please create this function in your Supabase project.');
-          } else {
-            toast.error('Could not connect to database. Please check your Supabase configuration.');
+          if (tablesError) {
+            console.error('Error checking tables:', tablesError);
+            
+            // More specific error message
+            if (tablesError.message.includes('not found') || tablesError.message.includes('get_tables')) {
+              toast.error('RPC function "get_tables" not found. You need to create this in your Supabase SQL editor.');
+              // Proceed with setup anyway as this is likely a new project
+              await setupDatabase();
+            } else {
+              toast.error('Could not connect to database. Please check your Supabase configuration.');
+              setError('Database connection failed. Ensure your Supabase URL and key are correct.');
+            }
+            
+            setInitializing(false);
+            return;
           }
           
-          setInitializing(false);
-          return;
-        }
-        
-        if (!tables) {
-          console.warn('No tables data returned');
-          toast.warning('Could not verify database tables. Proceeding with setup anyway.');
-          await setupDatabase();
-          setInitializing(false);
-          return;
-        }
-        
-        const allTablesExist = 
-          tables.includes('users') && 
-          tables.includes('calls') && 
-          tables.includes('keywords') && 
-          tables.includes('teams');
+          if (!tables || !Array.isArray(tables)) {
+            console.warn('No tables data returned or invalid format');
+            toast.warning('Could not verify database tables. Proceeding with setup anyway.');
+            await setupDatabase();
+            setInitializing(false);
+            return;
+          }
           
-        if (!allTablesExist) {
-          // Database needs setup
+          const allTablesExist = 
+            tables.includes('users') && 
+            tables.includes('calls') && 
+            tables.includes('keywords') && 
+            tables.includes('teams');
+            
+          if (!allTablesExist) {
+            // Database needs setup
+            await setupDatabase();
+          }
+        } catch (rpcError) {
+          console.error('Failed to check tables:', rpcError);
+          toast.error('Database check failed. Setting up database anyway.');
+          // Try to set up database even if check fails
           await setupDatabase();
         }
       } catch (error) {

@@ -133,3 +133,8 @@ console.log('Supabase Anon Key:', supabaseAnonKey);
 
 // Create and export the Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+
+// Helper function to check if we're using real credentials
+export const isUsingRealSupabase = () => {
+  return supabaseUrl !== DEFAULT_SUPABASE_URL && supabaseAnonKey !== DEFAULT_SUPABASE_KEY;
+};
