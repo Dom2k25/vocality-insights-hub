@@ -16,10 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,6 +54,7 @@ export function LoginForm() {
   const handleDemoLogin = async (role: string) => {
     setIsLoading(true);
     let email = "";
+    let password = "password123"; // Demo password
     
     switch (role) {
       case "admin":
@@ -72,7 +74,7 @@ export function LoginForm() {
     }
     
     try {
-      await login(email, "password");
+      await login(email, password);
       navigate("/dashboard");
     } catch (error) {
       // Error is already handled in the auth context
