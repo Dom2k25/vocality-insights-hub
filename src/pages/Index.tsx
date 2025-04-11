@@ -1,14 +1,25 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-r-transparent animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading...</span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Redirect to dashboard if authenticated, otherwise to login
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
 };
 
 export default Index;
