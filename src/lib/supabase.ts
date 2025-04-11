@@ -118,7 +118,14 @@ export type Database = {
   };
 };
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+// When connecting to Supabase via Lovable's integration, these environment
+// variables are automatically set when the project is connected.
+// We fall back to hardcoded values for development only.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-supabase-project.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+
+// Add console logs to debug the environment variables
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Anon Key:', supabaseAnonKey);
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
