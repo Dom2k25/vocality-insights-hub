@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle } from "lucide-react";
+import { verifyDatabase } from "@/services/database";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -62,24 +62,23 @@ export function LoginForm() {
 
   const checkSetupRequired = async () => {
     try {
-      // First try to sign in as admin to check if our demo accounts exist and work
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: "admin@vocality.app",
-        password: "password123",
-      });
+      // Verify database setup
+      const isSetupValid = await verifyDatabase();
       
-      if (signInError) {
-        console.log("Admin sign-in check failed:", signInError);
-        // If we can't sign in, we should check if we need to create the accounts
+      if (!isSetupValid) {
+        console.log("Database setup is invalid or incomplete");
         setSetupRequired(true);
+        // Automatically run setup
+        await handleSetupDemoAccounts();
       } else {
-        // If we can sign in, we don't need to set up
+        // If setup is valid, we don't need to set up
         setSetupRequired(false);
-        await supabase.auth.signOut(); // Sign out to let the user sign in with their chosen account
       }
     } catch (error) {
       console.error("Error checking setup:", error);
       setSetupRequired(true);
+      // Automatically run setup
+      await handleSetupDemoAccounts();
     }
   };
 

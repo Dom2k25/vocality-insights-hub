@@ -201,85 +201,86 @@ const createAuthUser = async (email: string, password: string) => {
 export const setupDatabase = async () => {
   console.log("Setting up database with test data...");
   
-  // Create tables using RPC function
   try {
-    const { error: tablesRpcError } = await supabase.rpc('create_teams_table_if_not_exists');
-    if (tablesRpcError) {
-      console.error("Error creating tables:", tablesRpcError);
-      // Fall back to manual creation
-      await createTablesManually();
+    // Execute the SQL script to create tables and insert initial data
+    const { error: setupError } = await supabase.rpc('exec', {
+      query: `
+        -- Create teams table
+        CREATE TABLE IF NOT EXISTS public.teams (
+            id text PRIMARY KEY,
+            name text NOT NULL,
+            created_at timestamp with time zone DEFAULT current_timestamp
+        );
+
+        -- Create users table
+        CREATE TABLE IF NOT EXISTS public.users (
+            id text PRIMARY KEY,
+            email text UNIQUE NOT NULL,
+            name text NOT NULL,
+            role text NOT NULL,
+            team text REFERENCES public.teams(id),
+            avatar text,
+            status text DEFAULT 'active',
+            created_at timestamp with time zone DEFAULT current_timestamp
+        );
+
+        -- Create calls table
+        CREATE TABLE IF NOT EXISTS public.calls (
+            id text PRIMARY KEY,
+            user_id text REFERENCES public.users(id),
+            customer_name text NOT NULL,
+            duration integer NOT NULL,
+            timestamp timestamp with time zone DEFAULT current_timestamp,
+            score integer NOT NULL,
+            recording_url text,
+            transcript text,
+            analysis jsonb,
+            created_at timestamp with time zone DEFAULT current_timestamp
+        );
+
+        -- Create keywords table
+        CREATE TABLE IF NOT EXISTS public.keywords (
+            id text PRIMARY KEY,
+            text text NOT NULL,
+            sentiment text NOT NULL,
+            count integer NOT NULL DEFAULT 0,
+            team_id text REFERENCES public.teams(id),
+            created_at timestamp with time zone DEFAULT current_timestamp
+        );
+
+        -- Create indexes for better performance
+        CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
+        CREATE INDEX IF NOT EXISTS idx_users_team ON public.users(team);
+        CREATE INDEX IF NOT EXISTS idx_calls_user_id ON public.calls(user_id);
+        CREATE INDEX IF NOT EXISTS idx_calls_timestamp ON public.calls(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_keywords_team_id ON public.keywords(team_id);
+
+        -- Insert default team if it doesn't exist
+        INSERT INTO public.teams (id, name)
+        VALUES ('1', 'Sales')
+        ON CONFLICT (id) DO NOTHING;
+
+        -- Insert demo users if they don't exist
+        INSERT INTO public.users (id, email, name, role, team, status, avatar)
+        VALUES 
+            ('1', 'admin@vocality.app', 'Admin User', 'admin', '1', 'active', 'https://ui-avatars.com/api/?name=Admin+User&background=6271f1&color=fff'),
+            ('2', 'team@vocality.app', 'Team Lead', 'teamleader', '1', 'active', 'https://ui-avatars.com/api/?name=Team+Lead&background=4039c4&color=fff'),
+            ('3', 'coach@vocality.app', 'Coach User', 'coach', '1', 'active', 'https://ui-avatars.com/api/?name=Coach+User&background=36319d&color=fff'),
+            ('4', 'agent@vocality.app', 'Agent User', 'agent', '1', 'active', 'https://ui-avatars.com/api/?name=Agent+User&background=302d7a&color=fff')
+        ON CONFLICT (id) DO NOTHING;
+      `
+    });
+
+    if (setupError) {
+      console.error("Error setting up database:", setupError);
+      throw setupError;
     }
+
+    console.log("Database setup completed successfully!");
   } catch (error) {
-    console.error("Error using RPC to create tables:", error);
-    // Fall back to manual creation
-    await createTablesManually();
+    console.error("Error in database setup:", error);
+    throw error;
   }
-  
-  // Insert a team if it doesn't exist
-  const { error: teamInsertError } = await supabase
-    .from('teams')
-    .upsert({ 
-      id: '1', 
-      name: 'Sales'
-    }, { onConflict: 'id' });
-  
-  if (teamInsertError) console.error("Error inserting team:", teamInsertError);
-
-  const testUsers = [
-    {
-      id: '1',
-      email: 'admin@vocality.app',
-      name: 'Admin User',
-      role: UserRole.ADMIN,
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=6271f1&color=fff',
-    },
-    {
-      id: '2',
-      email: 'team@vocality.app',
-      name: 'Team Lead',
-      role: UserRole.TEAM_LEADER,
-      team: 'Sales',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Team+Lead&background=4039c4&color=fff',
-    },
-    {
-      id: '3',
-      email: 'coach@vocality.app',
-      name: 'Coach User',
-      role: UserRole.COACH,
-      team: 'Sales',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Coach+User&background=36319d&color=fff',
-    },
-    {
-      id: '4',
-      email: 'agent@vocality.app',
-      name: 'Agent User',
-      role: UserRole.AGENT,
-      team: 'Sales',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Agent+User&background=302d7a&color=fff',
-    },
-  ];
-
-  // Insert test users if they don't exist
-  for (const user of testUsers) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', user.email)
-      .single();
-    
-    if (error || !data) {
-      await supabase.from('users').insert(user);
-    }
-    
-    // Create auth users for demo accounts
-    await createAuthUser(user.email, 'password123');
-  }
-  
-  console.log("Database setup completed!");
 };
 
 // Helper function to manually create tables if RPC fails
@@ -389,5 +390,68 @@ const createTablesManually = async () => {
     } catch (fallbackError) {
       console.error("Fallback insertion approach failed:", fallbackError);
     }
+  }
+};
+
+// Add this new function to verify database setup
+export const verifyDatabase = async () => {
+  try {
+    console.log("Verifying database setup...");
+    
+    // Check if tables exist
+    const { data: tables, error: tablesError } = await supabase
+      .rpc('get_tables');
+    
+    if (tablesError) {
+      console.error("Error checking tables:", tablesError);
+      return false;
+    }
+
+    const requiredTables = ['teams', 'users', 'calls', 'keywords'];
+    const missingTables = requiredTables.filter(table => !tables.includes(table));
+    
+    if (missingTables.length > 0) {
+      console.error("Missing tables:", missingTables);
+      return false;
+    }
+
+    // Check if demo users exist
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('email')
+      .in('email', [
+        'admin@vocality.app',
+        'team@vocality.app',
+        'coach@vocality.app',
+        'agent@vocality.app'
+      ]);
+
+    if (usersError) {
+      console.error("Error checking users:", usersError);
+      return false;
+    }
+
+    if (!users || users.length !== 4) {
+      console.error("Demo users not found or incomplete");
+      return false;
+    }
+
+    // Check if default team exists
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('id', '1')
+      .single();
+
+    if (teamError || !team) {
+      console.error("Default team not found");
+      return false;
+    }
+
+    console.log("Database verification successful!");
+    return true;
+  } catch (error) {
+    console.error("Error in database verification:", error);
+    return false;
   }
 };
