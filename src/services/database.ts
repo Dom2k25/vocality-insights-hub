@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/contexts/AuthContext';
 
@@ -236,20 +235,19 @@ const createTablesManually = async () => {
   try {
     // Create teams table
     const { error: teamsError } = await supabase
-      .from('teams')
-      .execute(`
+      .rpc('exec', { query: `
         CREATE TABLE IF NOT EXISTS public.teams (
           id text PRIMARY KEY,
           name text NOT NULL,
           created_at timestamp with time zone DEFAULT current_timestamp
         );
-      `);
+      `})
+      .single();
     if (teamsError) console.error("Error creating teams table:", teamsError);
 
     // Create users table
     const { error: usersError } = await supabase
-      .from('users')
-      .execute(`
+      .rpc('exec', { query: `
         CREATE TABLE IF NOT EXISTS public.users (
           id text PRIMARY KEY,
           email text UNIQUE NOT NULL,
@@ -260,13 +258,13 @@ const createTablesManually = async () => {
           status text,
           created_at timestamp with time zone DEFAULT current_timestamp
         );
-      `);
+      `})
+      .single();
     if (usersError) console.error("Error creating users table:", usersError);
 
     // Create calls table
     const { error: callsError } = await supabase
-      .from('calls')
-      .execute(`
+      .rpc('exec', { query: `
         CREATE TABLE IF NOT EXISTS public.calls (
           id text PRIMARY KEY,
           user_id text REFERENCES public.users(id),
@@ -278,13 +276,13 @@ const createTablesManually = async () => {
           transcript text,
           analysis jsonb
         );
-      `);
+      `})
+      .single();
     if (callsError) console.error("Error creating calls table:", callsError);
 
     // Create keywords table
     const { error: keywordsError } = await supabase
-      .from('keywords')
-      .execute(`
+      .rpc('exec', { query: `
         CREATE TABLE IF NOT EXISTS public.keywords (
           id text PRIMARY KEY,
           text text NOT NULL,
@@ -293,7 +291,8 @@ const createTablesManually = async () => {
           team_id text,
           created_at timestamp with time zone DEFAULT current_timestamp
         );
-      `);
+      `})
+      .single();
     if (keywordsError) console.error("Error creating keywords table:", keywordsError);
 
     console.log("Manual table creation attempts completed");
@@ -338,4 +337,3 @@ const createTablesManually = async () => {
     }
   }
 };
-
