@@ -1,4 +1,3 @@
-
 import React from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -57,7 +56,14 @@ export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps) {
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
     try {
-      await createUser(data);
+      await createUser({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        team: data.team
+      });
+      
       toast({
         title: "User created",
         description: `${data.name} has been added successfully`,
