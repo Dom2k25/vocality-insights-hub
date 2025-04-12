@@ -1,8 +1,12 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { createClient } from '@supabase/supabase-js';
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Define user roles
 export enum UserRole {
@@ -33,6 +37,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   users: User[];
   refreshUsers: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
 }
 
 // Create context
@@ -246,6 +253,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  const signUp = async (email: string, password: string, name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (error) throw error;
+
+    if (data.user) {
+      // Create user profile in your database
+      const { error: dbError } = await supabase.from('users').insert([
+        {
+          id: data.user.id,
+          email,
+          name,
+          role: 'agent', // Default role
+          status: 'active',
+        },
+      ]);
+      if (dbError) throw dbError;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -257,6 +296,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         users,
         refreshUsers,
+        signIn,
+        signOut,
+        signUp,
       }}
     >
       {children}
