@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle } from "lucide-react";
 import { verifyDatabase } from "@/services/database";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -26,12 +28,13 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function LoginForm() {
-  const { login } = useAuth();
+export const LoginForm: React.FC = () => {
+  const { login, setUser } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if we need to create demo accounts on component mount
   useEffect(() => {
@@ -46,19 +49,45 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(data: FormValues) {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
     setIsLoading(true);
+
     try {
-      await login(data.email, data.password);
-      navigate("/dashboard");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: form.getValues("email"),
+        password: form.getValues("password"),
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Fetch user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          role: profile.role,
+          team_id: profile.team_id,
+          full_name: profile.full_name
+        });
+
+        navigate('/dashboard');
+      }
     } catch (error) {
-      console.error(error);
-      // Check if we need to setup auth users
-      checkSetupRequired();
+      setError(error instanceof Error ? error.message : 'Anmeldung fehlgeschlagen');
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const checkSetupRequired = async () => {
     try {
@@ -239,133 +268,48 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold">Login to Vocality</h1>
-        <p className="text-muted-foreground">
-          Enter your credentials to access your account
-        </p>
-      </div>
-
-      {setupRequired && (
-        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-amber-800 dark:text-amber-200 flex items-start gap-3 mb-4">
-          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <div>
-            <h3 className="font-medium">Demo accounts need setup</h3>
-            <p className="text-sm mt-1">
-              {setupComplete 
-                ? "Demo accounts were created but login failed. Please try setting up again." 
-                : "It appears the demo user accounts need to be created in Supabase Auth."}
-            </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2 bg-amber-100 dark:bg-amber-900 border-amber-200 dark:border-amber-800"
-              onClick={handleSetupDemoAccounts}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Anmelden</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+            <div>
+              <Label htmlFor="email">E-Mail</Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.getValues("email")}
+                onChange={(e) => form.setValue("email", e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Passwort</Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.getValues("password")}
+                onChange={(e) => form.setValue("password", e.target.value)}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Creating accounts..." : "Create Demo Accounts"}
+              {isLoading ? 'Anmeldung läuft...' : 'Anmelden'}
             </Button>
-          </div>
-        </div>
-      )}
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    {...field}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="Enter your password"
-                    {...field}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Logging in...
-              </>
-            ) : (
-              "Log in"
-            )}
-          </Button>
-        </form>
-      </Form>
-
-      <div className="space-y-4">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Demo accounts
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handleDemoLogin("admin")}
-            disabled={isLoading}
-          >
-            Admin
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleDemoLogin("team")}
-            disabled={isLoading}
-          >
-            Team Lead
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleDemoLogin("coach")}
-            disabled={isLoading}
-          >
-            Coach
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleDemoLogin("agent")}
-            disabled={isLoading}
-          >
-            Agent
-          </Button>
-        </div>
-      </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};

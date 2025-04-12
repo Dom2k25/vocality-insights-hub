@@ -455,3 +455,148 @@ export const verifyDatabase = async () => {
     return false;
   }
 };
+
+// Speech Analysis Functions
+export const analyzeCallTranscript = async (transcript: string) => {
+  try {
+    // Basic sentiment analysis
+    const sentiment = analyzeSentiment(transcript);
+    
+    // Keyword extraction
+    const keywords = extractKeywords(transcript);
+    
+    // Topic detection
+    const topics = detectTopics(transcript);
+    
+    // Emotion analysis
+    const emotions = analyzeEmotions(transcript);
+    
+    // Conversation flow analysis
+    const flow = analyzeConversationFlow(transcript);
+
+    return {
+      sentiment,
+      keywords,
+      topics,
+      emotions,
+      flow,
+      transcript
+    };
+  } catch (error) {
+    console.error("Error analyzing transcript:", error);
+    throw error;
+  }
+};
+
+// Helper function for sentiment analysis
+const analyzeSentiment = (text: string) => {
+  // Basic sentiment analysis implementation
+  const positiveWords = ['great', 'excellent', 'good', 'happy', 'satisfied', 'perfect', 'wonderful'];
+  const negativeWords = ['bad', 'terrible', 'poor', 'unhappy', 'dissatisfied', 'awful', 'horrible'];
+  
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let neutralCount = 0;
+  
+  const words = text.toLowerCase().split(/\s+/);
+  
+  words.forEach(word => {
+    if (positiveWords.includes(word)) positiveCount++;
+    else if (negativeWords.includes(word)) negativeCount++;
+    else neutralCount++;
+  });
+  
+  const total = positiveCount + negativeCount + neutralCount;
+  
+  return {
+    positive: (positiveCount / total) * 100,
+    negative: (negativeCount / total) * 100,
+    neutral: (neutralCount / total) * 100,
+    overall: positiveCount > negativeCount ? 'positive' : 
+             negativeCount > positiveCount ? 'negative' : 'neutral'
+  };
+};
+
+// Helper function for keyword extraction
+const extractKeywords = (text: string) => {
+  // Basic keyword extraction implementation
+  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+  const words = text.toLowerCase().split(/\s+/);
+  const wordCount: Record<string, number> = {};
+  
+  words.forEach(word => {
+    if (!commonWords.includes(word) && word.length > 3) {
+      wordCount[word] = (wordCount[word] || 0) + 1;
+    }
+  });
+  
+  return Object.entries(wordCount)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 10)
+    .map(([word, count]) => ({ word, count }));
+};
+
+// Helper function for topic detection
+const detectTopics = (text: string) => {
+  // Basic topic detection implementation
+  const topics = [
+    { name: 'Product Inquiry', keywords: ['product', 'feature', 'specification', 'price'] },
+    { name: 'Technical Support', keywords: ['error', 'problem', 'issue', 'help', 'support'] },
+    { name: 'Billing', keywords: ['payment', 'invoice', 'bill', 'charge', 'cost'] },
+    { name: 'Account', keywords: ['account', 'login', 'password', 'register', 'sign up'] }
+  ];
+  
+  const detectedTopics = topics.map(topic => {
+    const matches = topic.keywords.filter(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    ).length;
+    
+    return {
+      topic: topic.name,
+      relevance: (matches / topic.keywords.length) * 100
+    };
+  }).filter(topic => topic.relevance > 0);
+  
+  return detectedTopics.sort((a, b) => b.relevance - a.relevance);
+};
+
+// Helper function for emotion analysis
+const analyzeEmotions = (text: string) => {
+  // Basic emotion analysis implementation
+  const emotions = {
+    happy: ['happy', 'joy', 'excited', 'great', 'wonderful'],
+    sad: ['sad', 'unhappy', 'disappointed', 'frustrated'],
+    angry: ['angry', 'mad', 'furious', 'upset'],
+    neutral: ['okay', 'fine', 'alright', 'normal']
+  };
+  
+  const emotionCounts: Record<string, number> = {};
+  let totalEmotions = 0;
+  
+  Object.entries(emotions).forEach(([emotion, keywords]) => {
+    const count = keywords.filter(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    ).length;
+    
+    emotionCounts[emotion] = count;
+    totalEmotions += count;
+  });
+  
+  return Object.entries(emotionCounts).map(([emotion, count]) => ({
+    emotion,
+    percentage: totalEmotions > 0 ? (count / totalEmotions) * 100 : 0
+  }));
+};
+
+// Helper function for conversation flow analysis
+const analyzeConversationFlow = (text: string) => {
+  // Basic conversation flow analysis implementation
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  
+  return {
+    totalSentences: sentences.length,
+    averageSentenceLength: sentences.reduce((sum, s) => sum + s.split(/\s+/).length, 0) / sentences.length,
+    questionCount: sentences.filter(s => s.trim().endsWith('?')).length,
+    exclamationCount: sentences.filter(s => s.trim().endsWith('!')).length
+  };
+};
