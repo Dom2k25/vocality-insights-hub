@@ -10,6 +10,8 @@ begin
       name text not null,
       created_at timestamp with time zone default current_timestamp
     );
+    
+    raise notice 'Created teams table';
   end if;
   
   -- Check if users table exists
@@ -24,6 +26,8 @@ begin
       status text,
       created_at timestamp with time zone default current_timestamp
     );
+    
+    raise notice 'Created users table';
   end if;
   
   -- Check if calls table exists
@@ -39,6 +43,8 @@ begin
       transcript text,
       analysis jsonb
     );
+    
+    raise notice 'Created calls table';
   end if;
   
   -- Check if keywords table exists
@@ -51,6 +57,10 @@ begin
       team_id text,
       created_at timestamp with time zone default current_timestamp
     );
+    
+    raise notice 'Created keywords table';
   end if;
 end;
 $$ language plpgsql security definer;
+
+comment on function create_teams_table_if_not_exists() is 'Creates all required tables for the application if they do not exist';

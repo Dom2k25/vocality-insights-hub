@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/contexts/AuthContext';
 
@@ -121,32 +122,22 @@ export const fetchAnalytics = async (userId?: string, period: 'day' | 'week' | '
 // Helper function to create auth users
 const createAuthUser = async (email: string, password: string) => {
   try {
-    // Check if user already exists in auth
-    const { data, error: getUserError } = await supabase.auth.admin.listUsers();
-    
-    if (getUserError) {
-      console.error('Error checking if auth user exists:', getUserError);
-      return;
-    }
-    
-    const existingUser = data?.users?.find(user => user.email === email);
-    
-    if (!existingUser) {
-      // Create auth user if it doesn't exist
-      console.log(`Creating auth user for ${email}`);
-      const { data, error } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true, // Auto-confirm email
-      });
-      
-      if (error) {
-        console.error(`Error creating auth user for ${email}:`, error);
-      } else {
-        console.log(`Auth user created for ${email}`);
+    // Instead of using admin API which might not be accessible in some environments,
+    // use signUp method which is always available
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          email_confirm: true
+        }
       }
+    });
+    
+    if (error) {
+      console.error(`Error creating auth user for ${email}:`, error);
     } else {
-      console.log(`Auth user for ${email} already exists`);
+      console.log(`Auth user created for ${email}`);
     }
   } catch (error) {
     console.error(`Error in createAuthUser for ${email}:`, error);
@@ -157,17 +148,17 @@ const createAuthUser = async (email: string, password: string) => {
 export const setupDatabase = async () => {
   console.log("Setting up database with test data...");
   
-  // Create teams table if it doesn't exist
+  // Create tables using RPC function
   try {
-    const { error: teamsTableError } = await supabase.rpc('create_teams_table_if_not_exists');
-    if (teamsTableError) {
-      console.error("Error creating teams table:", teamsTableError);
-      // Fallback: use SQL directly if RPC fails
+    const { error: tablesRpcError } = await supabase.rpc('create_teams_table_if_not_exists');
+    if (tablesRpcError) {
+      console.error("Error creating tables:", tablesRpcError);
+      // Fall back to manual creation
       await createTablesManually();
     }
   } catch (error) {
     console.error("Error using RPC to create tables:", error);
-    // Fallback: use insertions directly
+    // Fall back to manual creation
     await createTablesManually();
   }
   
@@ -240,58 +231,102 @@ export const setupDatabase = async () => {
 
 // Helper function to manually create tables if RPC fails
 const createTablesManually = async () => {
-  // Create teams table
-  await supabase.from('teams').insert({ id: '1', name: 'Sales' }).select()
-    .then(({ error }) => {
-      if (error && !error.message.includes('duplicate key')) {
-        console.error("Teams table might not exist, creating it first");
-      }
-    });
-  
-  // Create users table
-  const testUser = {
-    id: '1',
-    email: 'admin@vocality.app',
-    name: 'Admin User',
-    role: UserRole.ADMIN,
-    status: 'active'
-  };
-  
-  await supabase.from('users').insert(testUser).select()
-    .then(({ error }) => {
-      if (error && !error.message.includes('duplicate key')) {
-        console.error("Users table might not exist, creating it first");
-      }
-    });
-  
-  // Create calls table
-  const testCall = {
-    id: '1',
-    user_id: '1',
-    customer_name: 'Test Customer',
-    duration: 60,
-    score: 80,
-  };
-  
-  await supabase.from('calls').insert(testCall).select()
-    .then(({ error }) => {
-      if (error && !error.message.includes('duplicate key')) {
-        console.error("Calls table might not exist, creating it first");
-      }
-    });
-  
-  // Create keywords table
-  const testKeyword = {
-    id: '1',
-    text: 'Test Keyword',
-    sentiment: 'positive',
-    count: 10
-  };
-  
-  await supabase.from('keywords').insert(testKeyword).select()
-    .then(({ error }) => {
-      if (error && !error.message.includes('duplicate key')) {
-        console.error("Keywords table might not exist, creating it first");
-      }
-    });
+  console.log("Attempting to create tables manually...");
+
+  try {
+    // Create teams table
+    const { error: teamsError } = await supabase.query(`
+      CREATE TABLE IF NOT EXISTS public.teams (
+        id text PRIMARY KEY,
+        name text NOT NULL,
+        created_at timestamp with time zone DEFAULT current_timestamp
+      );
+    `);
+    if (teamsError) console.error("Error creating teams table:", teamsError);
+
+    // Create users table
+    const { error: usersError } = await supabase.query(`
+      CREATE TABLE IF NOT EXISTS public.users (
+        id text PRIMARY KEY,
+        email text UNIQUE NOT NULL,
+        name text NOT NULL,
+        role text NOT NULL,
+        team text,
+        avatar text,
+        status text,
+        created_at timestamp with time zone DEFAULT current_timestamp
+      );
+    `);
+    if (usersError) console.error("Error creating users table:", usersError);
+
+    // Create calls table
+    const { error: callsError } = await supabase.query(`
+      CREATE TABLE IF NOT EXISTS public.calls (
+        id text PRIMARY KEY,
+        user_id text REFERENCES public.users(id),
+        customer_name text NOT NULL,
+        duration integer NOT NULL,
+        timestamp timestamp with time zone DEFAULT current_timestamp,
+        score integer NOT NULL,
+        recording_url text,
+        transcript text,
+        analysis jsonb
+      );
+    `);
+    if (callsError) console.error("Error creating calls table:", callsError);
+
+    // Create keywords table
+    const { error: keywordsError } = await supabase.query(`
+      CREATE TABLE IF NOT EXISTS public.keywords (
+        id text PRIMARY KEY,
+        text text NOT NULL,
+        sentiment text NOT NULL,
+        count integer NOT NULL,
+        team_id text,
+        created_at timestamp with time zone DEFAULT current_timestamp
+      );
+    `);
+    if (keywordsError) console.error("Error creating keywords table:", keywordsError);
+
+    console.log("Manual table creation attempts completed");
+  } catch (error) {
+    console.error("Error in manual table creation:", error);
+    
+    // Fallback to even more basic approach - just try insertions and let them create tables
+    try {
+      console.log("Trying basic insertions as fallback...");
+      
+      // Try inserting into teams
+      await supabase.from('teams').insert({ id: '1', name: 'Sales' }).select();
+      
+      // Try inserting a test user
+      await supabase.from('users').insert({
+        id: '1',
+        email: 'admin@vocality.app',
+        name: 'Admin User',
+        role: UserRole.ADMIN,
+        status: 'active'
+      }).select();
+      
+      // Try inserting a test call
+      await supabase.from('calls').insert({
+        id: '1',
+        user_id: '1',
+        customer_name: 'Test Customer',
+        duration: 60,
+        score: 80
+      }).select();
+      
+      // Try inserting a test keyword
+      await supabase.from('keywords').insert({
+        id: '1',
+        text: 'Test Keyword',
+        sentiment: 'positive',
+        count: 10
+      }).select();
+      
+    } catch (fallbackError) {
+      console.error("Fallback insertion approach failed:", fallbackError);
+    }
+  }
 };

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, isUsingRealSupabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { setupDatabase } from "@/services/database";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -15,67 +15,29 @@ const Index = () => {
   useEffect(() => {
     // Check if database needs initialization
     const initDatabase = async () => {
-      try {
-        // Try to check if database tables exist
+      if (initializing) {
         try {
-          const { data: tables, error: tablesError } = await supabase.rpc('get_tables');
+          console.log("Initializing database...");
           
-          if (tablesError) {
-            console.error('Error checking tables:', tablesError);
-            
-            // More specific error message
-            if (tablesError.message.includes('not found') || tablesError.message.includes('get_tables')) {
-              toast.error('RPC function "get_tables" not found. You need to create this in your Supabase SQL editor.');
-              console.log('Proceeding with database setup...');
-              // Proceed with setup anyway as this is likely a new project
-              await setupDatabase();
-            } else {
-              toast.error('Could not connect to database. Please check your Supabase configuration.');
-              setError('Database connection failed. Check the console for more details.');
-            }
-            
-            setInitializing(false);
-            return;
-          }
-          
-          if (!tables || !Array.isArray(tables)) {
-            console.warn('No tables data returned or invalid format');
-            toast.warning('Could not verify database tables. Proceeding with setup anyway.');
-            await setupDatabase();
-            setInitializing(false);
-            return;
-          }
-          
-          const allTablesExist = 
-            tables.includes('users') && 
-            tables.includes('calls') && 
-            tables.includes('keywords') && 
-            tables.includes('teams');
-            
-          if (!allTablesExist) {
-            // Database needs setup
-            console.log('Some tables are missing. Setting up database...');
-            await setupDatabase();
-          }
-        } catch (rpcError) {
-          console.error('Failed to check tables:', rpcError);
-          toast.error('Database check failed. Setting up database anyway.');
-          // Try to set up database even if check fails
+          // More direct approach - just try to set up the database
           await setupDatabase();
+          
+          // If we get here, setup was (at least partially) successful
+          console.log("Database initialization completed");
+          setInitializing(false);
+        } catch (error) {
+          console.error("Database initialization error:", error);
+          toast.error("Database initialization failed. Please try again later.");
+          setError("Failed to initialize the application. Please check your Supabase configuration.");
+          setInitializing(false);
         }
-      } catch (error) {
-        console.error('Database initialization error:', error);
-        toast.error('Database initialization failed. Please try again later.');
-        setError('Failed to initialize the application. Please check your Supabase configuration.');
-      } finally {
-        setInitializing(false);
       }
     };
 
     if (!isLoading) {
       initDatabase();
     }
-  }, [isLoading]);
+  }, [isLoading, initializing]);
 
   // Show loading state
   if (isLoading || initializing) {
