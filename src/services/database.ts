@@ -235,57 +235,65 @@ const createTablesManually = async () => {
 
   try {
     // Create teams table
-    const { error: teamsError } = await supabase.query(`
-      CREATE TABLE IF NOT EXISTS public.teams (
-        id text PRIMARY KEY,
-        name text NOT NULL,
-        created_at timestamp with time zone DEFAULT current_timestamp
-      );
-    `);
+    const { error: teamsError } = await supabase
+      .from('teams')
+      .execute(`
+        CREATE TABLE IF NOT EXISTS public.teams (
+          id text PRIMARY KEY,
+          name text NOT NULL,
+          created_at timestamp with time zone DEFAULT current_timestamp
+        );
+      `);
     if (teamsError) console.error("Error creating teams table:", teamsError);
 
     // Create users table
-    const { error: usersError } = await supabase.query(`
-      CREATE TABLE IF NOT EXISTS public.users (
-        id text PRIMARY KEY,
-        email text UNIQUE NOT NULL,
-        name text NOT NULL,
-        role text NOT NULL,
-        team text,
-        avatar text,
-        status text,
-        created_at timestamp with time zone DEFAULT current_timestamp
-      );
-    `);
+    const { error: usersError } = await supabase
+      .from('users')
+      .execute(`
+        CREATE TABLE IF NOT EXISTS public.users (
+          id text PRIMARY KEY,
+          email text UNIQUE NOT NULL,
+          name text NOT NULL,
+          role text NOT NULL,
+          team text,
+          avatar text,
+          status text,
+          created_at timestamp with time zone DEFAULT current_timestamp
+        );
+      `);
     if (usersError) console.error("Error creating users table:", usersError);
 
     // Create calls table
-    const { error: callsError } = await supabase.query(`
-      CREATE TABLE IF NOT EXISTS public.calls (
-        id text PRIMARY KEY,
-        user_id text REFERENCES public.users(id),
-        customer_name text NOT NULL,
-        duration integer NOT NULL,
-        timestamp timestamp with time zone DEFAULT current_timestamp,
-        score integer NOT NULL,
-        recording_url text,
-        transcript text,
-        analysis jsonb
-      );
-    `);
+    const { error: callsError } = await supabase
+      .from('calls')
+      .execute(`
+        CREATE TABLE IF NOT EXISTS public.calls (
+          id text PRIMARY KEY,
+          user_id text REFERENCES public.users(id),
+          customer_name text NOT NULL,
+          duration integer NOT NULL,
+          timestamp timestamp with time zone DEFAULT current_timestamp,
+          score integer NOT NULL,
+          recording_url text,
+          transcript text,
+          analysis jsonb
+        );
+      `);
     if (callsError) console.error("Error creating calls table:", callsError);
 
     // Create keywords table
-    const { error: keywordsError } = await supabase.query(`
-      CREATE TABLE IF NOT EXISTS public.keywords (
-        id text PRIMARY KEY,
-        text text NOT NULL,
-        sentiment text NOT NULL,
-        count integer NOT NULL,
-        team_id text,
-        created_at timestamp with time zone DEFAULT current_timestamp
-      );
-    `);
+    const { error: keywordsError } = await supabase
+      .from('keywords')
+      .execute(`
+        CREATE TABLE IF NOT EXISTS public.keywords (
+          id text PRIMARY KEY,
+          text text NOT NULL,
+          sentiment text NOT NULL,
+          count integer NOT NULL,
+          team_id text,
+          created_at timestamp with time zone DEFAULT current_timestamp
+        );
+      `);
     if (keywordsError) console.error("Error creating keywords table:", keywordsError);
 
     console.log("Manual table creation attempts completed");
@@ -330,3 +338,4 @@ const createTablesManually = async () => {
     }
   }
 };
+
