@@ -25,6 +25,60 @@ export const updateUserProfile = async (userId: string, updates: Record<string, 
   return data;
 };
 
+// New function to create a user
+export const createUser = async (userData: {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  team?: string;
+}) => {
+  // First create the auth user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: userData.email,
+    password: userData.password,
+    options: {
+      data: {
+        name: userData.name,
+        role: userData.role
+      }
+    }
+  });
+
+  if (authError) {
+    throw new Error(`Error creating auth user: ${authError.message}`);
+  }
+
+  if (!authData.user) {
+    throw new Error('Failed to create auth user');
+  }
+
+  // Then create the user profile
+  const { error: profileError } = await supabase
+    .from('users')
+    .insert({
+      id: authData.user.id,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      team: userData.team,
+      status: 'active',
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=6271f1&color=fff`
+    });
+
+  if (profileError) {
+    // If profile creation fails, we should clean up the auth user
+    try {
+      await supabase.auth.admin.deleteUser(authData.user.id);
+    } catch (cleanupError) {
+      console.error('Failed to clean up auth user after profile creation error:', cleanupError);
+    }
+    throw new Error(`Error creating user profile: ${profileError.message}`);
+  }
+
+  return { id: authData.user.id, ...userData };
+};
+
 // Call functions
 export const fetchCalls = async (userId?: string, limit = 10) => {
   let query = supabase

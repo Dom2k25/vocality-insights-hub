@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   MoreHorizontal, 
-  UserPlus,
   UserCog,
   UserX,
   Mail
@@ -29,22 +28,25 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 
 const Users = () => {
-  const { users } = useAuth();
+  const { users, refreshUsers } = useAuth();
 
   const handleAction = (action: string, userName: string) => {
     toast.success(`${action} ${userName}`);
+  };
+
+  const handleUserCreated = () => {
+    refreshUsers();
+    toast.success("User list refreshed");
   };
 
   return (
     <DashboardLayout title="User Management">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Team Members</h2>
-        <Button className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Add User
-        </Button>
+        <CreateUserDialog onUserCreated={handleUserCreated} />
       </div>
       
       <div className="rounded-md border">
