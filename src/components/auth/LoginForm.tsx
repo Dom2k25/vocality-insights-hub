@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -31,6 +31,12 @@ export function LoginForm() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(false);
+
+  // Check if we need to create demo accounts on component mount
+  useEffect(() => {
+    checkSetupRequired();
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -55,19 +61,24 @@ export function LoginForm() {
   }
 
   const checkSetupRequired = async () => {
-    // Check if we have any auth users at all
-    const { data, error } = await supabase.auth.admin.listUsers();
-    
-    if (error) {
-      console.error("Error checking auth users:", error);
-      if (error.message.includes("not allowed")) {
-        // No admin access, likely demo users not created
+    try {
+      // First try to sign in as admin to check if our demo accounts exist and work
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: "admin@vocality.app",
+        password: "password123",
+      });
+      
+      if (signInError) {
+        console.log("Admin sign-in check failed:", signInError);
+        // If we can't sign in, we should check if we need to create the accounts
         setSetupRequired(true);
+      } else {
+        // If we can sign in, we don't need to set up
+        setSetupRequired(false);
+        await supabase.auth.signOut(); // Sign out to let the user sign in with their chosen account
       }
-      return;
-    }
-    
-    if (!data?.users || data.users.length === 0) {
+    } catch (error) {
+      console.error("Error checking setup:", error);
       setSetupRequired(true);
     }
   };
@@ -75,9 +86,13 @@ export function LoginForm() {
   const handleSetupDemoAccounts = async () => {
     setIsLoading(true);
     try {
+      // Delete any existing users first to avoid conflicts
+      const emails = ["admin@vocality.app", "team@vocality.app", "coach@vocality.app", "agent@vocality.app"];
+      
       // Create demo accounts manually since admin API might not be accessible
-      for (const email of ["admin@vocality.app", "team@vocality.app", "coach@vocality.app", "agent@vocality.app"]) {
-        const { error } = await supabase.auth.signUp({
+      for (const email of emails) {
+        // First attempt to sign up the user
+        const { data, error } = await supabase.auth.signUp({
           email,
           password: "password123",
           options: {
@@ -88,19 +103,105 @@ export function LoginForm() {
         });
         
         if (error) {
-          console.error(`Error creating user ${email}:`, error);
+          if (error.message.includes("already registered")) {
+            console.log(`User ${email} already exists, attempting to update password`);
+            
+            // If user exists, try to update their password using admin functions
+            // This might not work due to permissions, but worth trying
+            try {
+              await supabase.auth.admin.updateUserById(data?.user?.id || "", {
+                password: "password123",
+              });
+            } catch (updateError) {
+              console.error(`Failed to update password for ${email}:`, updateError);
+            }
+          } else {
+            console.error(`Error creating user ${email}:`, error);
+          }
         } else {
           console.log(`Created user: ${email}`);
         }
       }
       
+      // Ensure proper users table entries exist
+      await setupUserProfiles();
+      
       toast.success("Demo accounts created successfully! Try logging in now.");
       setSetupRequired(false);
+      setSetupComplete(true);
     } catch (error) {
       console.error("Error setting up demo accounts:", error);
       toast.error("Failed to create demo accounts. Please check console for details.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Create user profile entries in the users table
+  const setupUserProfiles = async () => {
+    try {
+      // Create demo profiles in the users table
+      const userProfiles = [
+        {
+          id: "1", // Using fixed IDs for demo users
+          email: "admin@vocality.app",
+          name: "Admin User",
+          role: "admin",
+          status: "active",
+          avatar: "https://ui-avatars.com/api/?name=Admin+User&background=6271f1&color=fff",
+        },
+        {
+          id: "2",
+          email: "team@vocality.app",
+          name: "Team Lead",
+          role: "teamleader",
+          team: "Sales",
+          status: "active",
+          avatar: "https://ui-avatars.com/api/?name=Team+Lead&background=4039c4&color=fff",
+        },
+        {
+          id: "3",
+          email: "coach@vocality.app",
+          name: "Coach User",
+          role: "coach",
+          team: "Sales",
+          status: "active",
+          avatar: "https://ui-avatars.com/api/?name=Coach+User&background=36319d&color=fff",
+        },
+        {
+          id: "4",
+          email: "agent@vocality.app",
+          name: "Agent User",
+          role: "agent",
+          team: "Sales",
+          status: "active",
+          avatar: "https://ui-avatars.com/api/?name=Agent+User&background=302d7a&color=fff",
+        },
+      ];
+
+      for (const profile of userProfiles) {
+        // Check if profile exists
+        const { data, error: fetchError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", profile.email)
+          .single();
+
+        if (fetchError || !data) {
+          // Create profile if it doesn't exist
+          const { error: insertError } = await supabase
+            .from("users")
+            .upsert(profile, { onConflict: "email" });
+
+          if (insertError) {
+            console.error(`Error creating profile for ${profile.email}:`, insertError);
+          } else {
+            console.log(`Created profile for ${profile.email}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error setting up user profiles:", error);
     }
   };
 
@@ -131,8 +232,8 @@ export function LoginForm() {
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
-      // Check if we need to setup auth users
-      checkSetupRequired();
+      toast.error(`Login failed for ${email}. Please try setting up demo accounts again.`);
+      setSetupRequired(true);
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +254,9 @@ export function LoginForm() {
           <div>
             <h3 className="font-medium">Demo accounts need setup</h3>
             <p className="text-sm mt-1">
-              It appears the demo user accounts need to be created in Supabase Auth.
+              {setupComplete 
+                ? "Demo accounts were created but login failed. Please try setting up again." 
+                : "It appears the demo user accounts need to be created in Supabase Auth."}
             </p>
             <Button 
               variant="outline" 

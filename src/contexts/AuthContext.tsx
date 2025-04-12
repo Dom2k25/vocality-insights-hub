@@ -47,53 +47,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to fetch user profile data
   const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching user profile:', error);
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      if (!data) {
+        console.error('User profile not found');
+        return null;
+      }
+
+      return {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role as UserRole,
+        team: data.team,
+        avatar: data.avatar,
+        status: data.status as "active" | "inactive",
+      };
+    } catch (error) {
+      console.error('Exception fetching user profile:', error);
       return null;
     }
-
-    if (!data) {
-      console.error('User profile not found');
-      return null;
-    }
-
-    return {
-      id: data.id,
-      email: data.email,
-      name: data.name,
-      role: data.role as UserRole,
-      team: data.team,
-      avatar: data.avatar,
-      status: data.status as "active" | "inactive",
-    };
   };
 
   // Function to fetch all users
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*');
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
 
-    if (error) {
-      console.error('Error fetching users:', error);
+      if (error) {
+        console.error('Error fetching users:', error);
+        return [];
+      }
+
+      return data.map(userData => ({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role as UserRole,
+        team: userData.team,
+        avatar: userData.avatar,
+        status: userData.status as "active" | "inactive",
+      }));
+    } catch (error) {
+      console.error('Exception fetching users:', error);
       return [];
     }
-
-    return data.map(userData => ({
-      id: userData.id,
-      email: userData.email,
-      name: userData.name,
-      role: userData.role as UserRole,
-      team: userData.team,
-      avatar: userData.avatar,
-      status: userData.status as "active" | "inactive",
-    }));
   };
 
   // Refresh users function
@@ -112,9 +122,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(currentSession);
       
       if (currentSession?.user) {
-        const userData = await fetchUserProfile(currentSession.user.id);
-        if (userData) {
-          setUser(userData);
+        try {
+          const userData = await fetchUserProfile(currentSession.user.id);
+          if (userData) {
+            setUser(userData);
+          } else {
+            // Try to match by email if ID doesn't work
+            const { data: userByEmail, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('email', currentSession.user.email)
+              .single();
+              
+            if (!error && userByEmail) {
+              setUser({
+                id: userByEmail.id,
+                email: userByEmail.email,
+                name: userByEmail.name,
+                role: userByEmail.role as UserRole,
+                team: userByEmail.team,
+                avatar: userByEmail.avatar,
+                status: userByEmail.status as "active" | "inactive",
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error setting user in init:', error);
         }
       }
       
@@ -132,13 +165,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(newSession);
       
       if (event === 'SIGNED_IN' && newSession?.user) {
-        const userData = await fetchUserProfile(newSession.user.id);
-        if (userData) {
-          setUser(userData);
-          toast.success("Login successful");
-        } else {
-          // User exists in auth but not in the users table
-          toast.error("User profile not found");
+        try {
+          let userData = await fetchUserProfile(newSession.user.id);
+          
+          if (!userData) {
+            // Try to find the user by email as a fallback
+            const { data: userByEmail, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('email', newSession.user.email)
+              .single();
+              
+            if (!error && userByEmail) {
+              userData = {
+                id: userByEmail.id,
+                email: userByEmail.email,
+                name: userByEmail.name,
+                role: userByEmail.role as UserRole,
+                team: userByEmail.team,
+                avatar: userByEmail.avatar,
+                status: userByEmail.status as "active" | "inactive",
+              };
+            }
+          }
+          
+          if (userData) {
+            setUser(userData);
+            toast.success("Login successful");
+          } else {
+            // User exists in auth but not in the users table
+            toast.error("User profile not found");
+            await supabase.auth.signOut();
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+          toast.error("Error loading user profile");
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
