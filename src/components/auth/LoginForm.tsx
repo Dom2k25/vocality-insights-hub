@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { InfoCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -149,7 +149,7 @@ export function LoginForm() {
 
       {setupRequired && (
         <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-amber-800 dark:text-amber-200 flex items-start gap-3 mb-4">
-          <InfoCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
           <div>
             <h3 className="font-medium">Demo accounts need setup</h3>
             <p className="text-sm mt-1">

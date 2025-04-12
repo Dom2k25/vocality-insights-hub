@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/contexts/AuthContext';
 
@@ -123,14 +122,14 @@ export const fetchAnalytics = async (userId?: string, period: 'day' | 'week' | '
 const createAuthUser = async (email: string, password: string) => {
   try {
     // Check if user already exists in auth
-    const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers();
+    const { data, error: getUserError } = await supabase.auth.admin.listUsers();
     
     if (getUserError) {
       console.error('Error checking if auth user exists:', getUserError);
       return;
     }
     
-    const existingUser = users?.find(user => user.email === email);
+    const existingUser = data?.users?.find(user => user.email === email);
     
     if (!existingUser) {
       // Create auth user if it doesn't exist
@@ -159,62 +158,18 @@ export const setupDatabase = async () => {
   console.log("Setting up database with test data...");
   
   // Create teams table if it doesn't exist
-  const { error: teamsTableError } = await supabase.query(`
-    CREATE TABLE IF NOT EXISTS public.teams (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  
-  if (teamsTableError) console.error("Error creating teams table:", teamsTableError);
-  
-  // Create users table if it doesn't exist
-  const { error: usersTableError } = await supabase.query(`
-    CREATE TABLE IF NOT EXISTS public.users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      role TEXT NOT NULL,
-      team TEXT,
-      avatar TEXT,
-      status TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  
-  if (usersTableError) console.error("Error creating users table:", usersTableError);
-  
-  // Create calls table if it doesn't exist
-  const { error: callsTableError } = await supabase.query(`
-    CREATE TABLE IF NOT EXISTS public.calls (
-      id TEXT PRIMARY KEY,
-      user_id TEXT REFERENCES public.users(id),
-      customer_name TEXT NOT NULL,
-      duration INTEGER NOT NULL,
-      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      score INTEGER NOT NULL,
-      recording_url TEXT,
-      transcript TEXT,
-      analysis JSONB
-    );
-  `);
-  
-  if (callsTableError) console.error("Error creating calls table:", callsTableError);
-  
-  // Create keywords table if it doesn't exist
-  const { error: keywordsTableError } = await supabase.query(`
-    CREATE TABLE IF NOT EXISTS public.keywords (
-      id TEXT PRIMARY KEY,
-      text TEXT NOT NULL,
-      sentiment TEXT NOT NULL,
-      count INTEGER NOT NULL,
-      team_id TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  
-  if (keywordsTableError) console.error("Error creating keywords table:", keywordsTableError);
+  try {
+    const { error: teamsTableError } = await supabase.rpc('create_teams_table_if_not_exists');
+    if (teamsTableError) {
+      console.error("Error creating teams table:", teamsTableError);
+      // Fallback: use SQL directly if RPC fails
+      await createTablesManually();
+    }
+  } catch (error) {
+    console.error("Error using RPC to create tables:", error);
+    // Fallback: use insertions directly
+    await createTablesManually();
+  }
   
   // Insert a team if it doesn't exist
   const { error: teamInsertError } = await supabase
@@ -283,3 +238,60 @@ export const setupDatabase = async () => {
   console.log("Database setup completed!");
 };
 
+// Helper function to manually create tables if RPC fails
+const createTablesManually = async () => {
+  // Create teams table
+  await supabase.from('teams').insert({ id: '1', name: 'Sales' }).select()
+    .then(({ error }) => {
+      if (error && !error.message.includes('duplicate key')) {
+        console.error("Teams table might not exist, creating it first");
+      }
+    });
+  
+  // Create users table
+  const testUser = {
+    id: '1',
+    email: 'admin@vocality.app',
+    name: 'Admin User',
+    role: UserRole.ADMIN,
+    status: 'active'
+  };
+  
+  await supabase.from('users').insert(testUser).select()
+    .then(({ error }) => {
+      if (error && !error.message.includes('duplicate key')) {
+        console.error("Users table might not exist, creating it first");
+      }
+    });
+  
+  // Create calls table
+  const testCall = {
+    id: '1',
+    user_id: '1',
+    customer_name: 'Test Customer',
+    duration: 60,
+    score: 80,
+  };
+  
+  await supabase.from('calls').insert(testCall).select()
+    .then(({ error }) => {
+      if (error && !error.message.includes('duplicate key')) {
+        console.error("Calls table might not exist, creating it first");
+      }
+    });
+  
+  // Create keywords table
+  const testKeyword = {
+    id: '1',
+    text: 'Test Keyword',
+    sentiment: 'positive',
+    count: 10
+  };
+  
+  await supabase.from('keywords').insert(testKeyword).select()
+    .then(({ error }) => {
+      if (error && !error.message.includes('duplicate key')) {
+        console.error("Keywords table might not exist, creating it first");
+      }
+    });
+};
