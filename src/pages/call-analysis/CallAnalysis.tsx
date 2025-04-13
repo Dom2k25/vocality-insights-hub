@@ -1,7 +1,8 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Mic, MicOff, Play, Pause, Stop } from 'lucide-react';
+import { Mic, MicOff, Play, Pause, Square } from 'lucide-react';
 
 const CallAnalysis = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -114,7 +115,7 @@ const CallAnalysis = () => {
                     <Pause className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="icon">
-                    <Stop className="h-4 w-4" />
+                    <Square className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -156,4 +157,4 @@ const CallAnalysis = () => {
   );
 };
 
-export default CallAnalysis; 
+export default CallAnalysis;
