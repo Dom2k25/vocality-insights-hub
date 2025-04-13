@@ -1,14 +1,11 @@
+
 import { Outlet } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeProvider';
 import { Button } from '../components/ui/button';
 import { Moon, Sun } from 'lucide-react';
 
 const AuthLayout = () => {
-  const { theme, setTheme } = useTheme();
-
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,4 +26,4 @@ const AuthLayout = () => {
   );
 };
 
-export default AuthLayout; 
+export default AuthLayout;

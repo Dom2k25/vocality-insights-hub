@@ -13,7 +13,8 @@ import {
   Home, 
   Headphones 
 } from "lucide-react";
-import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/user";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -22,7 +23,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className }: SidebarProps) {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
 
   // Define navigation items based on user role
@@ -122,7 +123,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={logout} className="gap-2">
+            <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
               <LogOut className="h-4 w-4" />
               Logout
             </Button>
