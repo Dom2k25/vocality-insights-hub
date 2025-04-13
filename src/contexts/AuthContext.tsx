@@ -1,12 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { createClient } from '@supabase/supabase-js';
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "../services/supabaseClient";
 
 // Define user roles
 export enum UserRole {

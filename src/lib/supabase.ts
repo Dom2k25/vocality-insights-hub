@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 export type Database = {
@@ -117,13 +118,17 @@ export type Database = {
   };
 };
 
-// Use your actual Supabase URL and anon key
-const supabaseUrl = 'https://emmladhteznfjabfjncn.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWxhZGh0ZXpuZmphYmZqbmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0MDk1NzksImV4cCI6MjA1OTk4NTU3OX0.Yy_jIIALMqDhGYCe_WOX5xNQcLLL7tNWbBVCeDs7AW0';
+// Default values for development (these will be overridden by env variables if they exist)
+const defaultSupabaseUrl = 'https://emmladhteznfjabfjncn.supabase.co';
+const defaultSupabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWxhZGh0ZXpuZmphYmZqbmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0MDk1NzksImV4cCI6MjA1OTk4NTU3OX0.Yy_jIIALMqDhGYCe_WOX5xNQcLLL7tNWbBVCeDs7AW0';
+
+// Use environment variables if available, otherwise use default values
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || defaultSupabaseUrl;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || defaultSupabaseAnonKey;
 
 // Add console logs to debug the configuration
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Anon Key:', supabaseAnonKey.substring(0, 10) + '...');
+console.log('Supabase URL (from lib):', supabaseUrl);
+console.log('Supabase Anon Key (from lib, first 10 chars):', supabaseAnonKey.substring(0, 10) + '...');
 
 // Create and export the Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
