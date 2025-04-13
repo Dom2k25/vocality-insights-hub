@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeProvider';
 import { AuthProvider } from './contexts/AuthContext';
@@ -5,8 +6,9 @@ import { Toaster } from 'sonner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Navbar } from './components/layout/Navbar';
 import { LoginForm } from './components/auth/LoginForm';
-import { Dashboard } from './components/Dashboard';
-import { UserManagement } from './components/UserManagement';
+// Rename component imports to avoid conflicts with page imports
+import { Dashboard as DashboardComponent } from './components/Dashboard';
+import { UserManagement as UserManagementComponent } from './components/UserManagement';
 import { UserRole } from './types/user';
 
 // Layouts
