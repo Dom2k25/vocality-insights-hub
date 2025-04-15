@@ -1,12 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'sonner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { Navbar } from './components/layout/Navbar';
-// Rename component imports to avoid conflicts with page imports
-import { Dashboard as DashboardComponent } from './components/Dashboard';
-import { UserManagement as UserManagementComponent } from './components/UserManagement';
 import { UserRole } from './types/user';
 
 // Layouts
@@ -20,37 +15,73 @@ import Dashboard from './pages/dashboard/Dashboard';
 import CallAnalysis from './pages/call-analysis/CallAnalysis';
 import UserManagement from './pages/admin/UserManagement';
 import LiveMonitoring from './pages/monitoring/LiveMonitoring';
+import Analytics from './pages/Analytics';
+import Index from './pages/Index';
 
 function App() {
   return (
     <Router>
       <Toaster position="top-right" />
       <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="py-6">
-          <Routes>
-            {/* Auth Routes */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-            </Route>
+        <Routes>
+          {/* Index Route */}
+          <Route path="/" element={<Index />} />
 
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/call-analysis" element={<CallAnalysis />} />
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
-                    <UserManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/live-monitoring" element={<LiveMonitoring />} />
-            </Route>
-          </Routes>
-        </main>
+          {/* Auth Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+          </Route>
+
+          {/* Protected Dashboard Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/call-analysis" 
+            element={
+              <ProtectedRoute>
+                <CallAnalysis />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/monitoring" 
+            element={
+              <ProtectedRoute>
+                <LiveMonitoring />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/users" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Fallback for unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
     </Router>
   );

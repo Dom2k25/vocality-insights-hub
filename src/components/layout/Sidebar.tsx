@@ -42,7 +42,7 @@ export function Sidebar({ className }: SidebarProps) {
     },
     {
       title: "Voice Analysis",
-      href: "/voice-analysis",
+      href: "/call-analysis",
       icon: <Mic className="h-5 w-5" />,
       allowedRoles: [UserRole.ADMIN, UserRole.TEAM_LEADER, UserRole.COACH, UserRole.AGENT],
     },
@@ -75,12 +75,10 @@ export function Sidebar({ className }: SidebarProps) {
     <div className={cn("flex flex-col h-screen border-r", className)}>
       <div className="flex h-16 items-center justify-between px-4 py-4">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-vocality-600 flex items-center justify-center">
-            <Mic className="h-4 w-4 text-white" />
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+            <Mic className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-vocality-500 to-vocality-700 bg-clip-text text-transparent">
-            Vocality
-          </span>
+          <span className="text-xl font-bold">Vocality</span>
         </Link>
         <ThemeToggle />
       </div>
